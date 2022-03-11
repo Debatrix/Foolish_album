@@ -1,20 +1,28 @@
 
 import cv2
+import os
+import argparse
 import os.path as osp
 from glob import glob
-from tqdm import tqdm
-from centerface import CenterFace
+
 import numpy as np
+from tqdm import tqdm
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import calinski_harabasz_score
+
+from centerface import CenterFace
 
 
 img_ext=['jpg','png','bmp']
 
 
 if __name__ == "__main__":
-    path = 'image'
-    img_list = [x for x in glob(path+'/*') if x.split('.')[-1].lower() in img_ext]
+    args = argparse.ArgumentParser()
+    args.add_argument("-p", "--path", required=True, help="path to input directory of photos")
+    args.add_argument("-f", "--face", default=True, action='store_true', help="is save face image")
+    args = args.parse_args()
+
+    img_list = [x for x in glob(args.path+'/*') if x.split('.')[-1].lower() in img_ext]
 
     centerface = CenterFace(landmarks=True)
     embedder = cv2.dnn.readNetFromTorch('models/nn4.small2.v1.t7')
@@ -37,6 +45,10 @@ if __name__ == "__main__":
             vec = embedder.forward().flatten()
             embedding.append(vec)
             person[osp.basename(p)].append(face_idx)
+            if args.face:
+                if not osp.exists(osp.join(args.path,'face')) or not osp.isdir(osp.join(args.path,'face')):
+                    os.makedirs(osp.join(args.path,'face'))
+                cv2.imwrite(osp.join(args.path,'face','{}.png'.format(face_idx)),face)
             face_idx+=1
     
     embedding = np.array(embedding)
@@ -51,7 +63,7 @@ if __name__ == "__main__":
                 best_gamma = gamma
                 best_pre = y_pre
 
-    with open(osp.join(path,'person.csv'),'w') as f:
+    with open(osp.join(args.path,'person.csv'),'w') as f:
         for k,v in person.items():
             line=','.join([k]+[str(y_pre[x]) for x in v])
             f.write(line+'\n')
