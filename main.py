@@ -13,23 +13,35 @@ from sklearn.metrics import calinski_harabasz_score
 from centerface import CenterFace
 
 
-img_ext=['jpg','png','bmp']
+img_ext=['jpg','jpeg','png','bmp']
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("-p", "--path", required=True, help="path to input directory of photos")
+    args.add_argument("-p", "--path", default='./image/', help="path to input directory of photos")
     args.add_argument("-f", "--face", default=True, action='store_true', help="is save face image")
     args = args.parse_args()
 
-    img_list = [x for x in glob(args.path+'/*') if x.split('.')[-1].lower() in img_ext]
+    if osp.exists(osp.join(args.path,'person.csv')) and osp.exists(osp.join(args.path,'cache.npy')):
+        with open(osp.join(args.path,'person.csv'),'r') as f:
+            exists = [x.split(',')[0] for x in f.readlines()]
+        cache = np.load(osp.join(args.path,'cache.npy'),allow_pickle=True).tolist()
+        embedding = cache['embedding'].tolist()
+        person = cache['person']
+        face_idx=len(embedding)
+    else:
+        face_idx=0
+        embedding = []
+        exists=[]
+        person={}
+
+
+    img_list = [x for x in glob(osp.join(args.path,'*')) if x.split('.')[-1].lower() in img_ext and osp.basename(x) not in exists]
 
     centerface = CenterFace(landmarks=True)
     embedder = cv2.dnn.readNetFromTorch('models/nn4.small2.v1.t7')
 
-    face_idx=0
-    person={}
-    embedding = []
+    
     for p in tqdm(img_list):
         person[osp.basename(p)]=[]
         img = cv2.imread(p)
@@ -67,3 +79,4 @@ if __name__ == "__main__":
         for k,v in person.items():
             line=','.join([k]+[str(y_pre[x]) for x in v])
             f.write(line+'\n')
+    np.save(osp.join(args.path,'cache.npy'),{'person':person,'embedding':embedding})
