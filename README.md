@@ -2,10 +2,10 @@
 
 ## 使用方法
 
-'''
+```
 pip install -r requirements.txt
 python main.py -p /path/to/photos -f
-'''
+```
 
 ## 输出结果
 
